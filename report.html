@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exact Leak Detection HTX — Inspection Report</title>
+<style>
+:root{--navy:#1B365D;--blue:#2B8FCC;--red:#D42B2B;--light:#f4f6f8;--border:#ddd;--text:#333}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--text);background:#fff;font-size:16px;line-height:1.5}
+.report{max-width:900px;margin:0 auto;padding:16px}
+h1{font-size:1.4em;color:var(--navy);margin:0}
+h2{font-size:1.1em;color:#fff;background:var(--navy);padding:12px 16px;margin:24px 0 0;border-radius:6px 6px 0 0;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+h2 .toggle{font-size:0.8em;opacity:0.7}
+.section{border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;padding:16px;margin-bottom:8px;background:#fff}
+.section.collapsed{display:none}
+.header{text-align:center;padding:20px 16px;border-bottom:3px solid var(--navy)}
+.header .company{font-size:1.6em;font-weight:700;color:var(--navy)}
+.header .tagline{color:var(--blue);font-size:0.95em;margin:4px 0 8px}
+.header .contact{font-size:0.85em;color:#666}
+.header .contact a{color:var(--blue);text-decoration:none}
+.report-meta{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:12px 0;border-bottom:1px solid var(--border);margin-bottom:16px}
+.report-meta label{font-weight:600;font-size:0.85em;color:var(--navy)}
+.row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px}
+.field{flex:1;min-width:200px}
+.field label{display:block;font-weight:600;font-size:0.85em;color:var(--navy);margin-bottom:4px}
+.field input,.field select,.field textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:4px;font-size:16px;font-family:inherit;-webkit-appearance:none}
+.field textarea{min-height:80px;resize:vertical}
+.field select{background:#fff}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 2px rgba(43,143,204,0.2)}
+.checkbox-group{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px}
+.checkbox-item{display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--border);border-radius:6px;min-width:160px;flex:1;cursor:pointer}
+.checkbox-item input[type="checkbox"],.checkbox-item input[type="radio"]{width:22px;height:22px;cursor:pointer}
+.checkbox-item label{font-size:0.9em;cursor:pointer}
+.photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-top:8px}
+.photo-slot{border:2px dashed var(--border);border-radius:8px;padding:16px;text-align:center;min-height:180px;display:flex;flex-direction:column;justify-content:center;align-items:center;background:var(--light)}
+.photo-slot input[type="file"]{margin:8px 0}
+.photo-slot .caption-input{width:100%;margin-top:8px;padding:8px;border:1px solid var(--border);border-radius:4px;font-size:14px}
+.photo-slot .label{font-weight:600;color:var(--navy);font-size:0.85em;margin-bottom:8px}
+.photo-slot img{max-width:100%;max-height:200px;border-radius:4px;margin:8px 0}
+.sig-area{border:1px solid var(--border);border-radius:6px;padding:16px;margin:12px 0;min-height:100px;background:var(--light)}
+.sig-line{border-top:1px solid var(--text);margin-top:60px;padding-top:4px;font-size:0.85em;color:#666}
+.disclaimer{font-size:0.8em;color:#666;line-height:1.6;padding:12px;background:var(--light);border-radius:6px}
+.btn{background:var(--blue);color:#fff;border:none;padding:14px 28px;border-radius:6px;font-size:1em;font-weight:600;cursor:pointer;margin:8px 4px}
+.btn:hover{background:var(--navy)}
+.btn-red{background:var(--red)}
+.actions{text-align:center;padding:24px 0}
+.pf-result{display:inline-block;padding:6px 16px;border-radius:4px;font-weight:700;font-size:0.95em;margin-top:4px}
+.pf-pass{background:#d4edda;color:#155724}
+.pf-fail{background:#f8d7da;color:#721c24}
+@media print{
+  body{font-size:11pt}
+  .report{padding:0;max-width:100%}
+  h2{background:var(--navy)!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;break-after:avoid}
+  h2 .toggle{display:none}
+  .section{border:1px solid #ccc!important;break-inside:avoid}
+  .section.collapsed{display:block!important}
+  .field input,.field select,.field textarea{border:none;padding:2px 0;font-size:10pt}
+  .field input[type="file"]{display:none}
+  .checkbox-item{border:none;padding:4px 8px}
+  .photo-slot{border:1px solid #ccc;page-break-inside:avoid}
+  .photo-slot input[type="file"]{display:none}
+  .actions{display:none}
+  .header{border-bottom:2px solid var(--navy)}
+  .disclaimer{background:#f8f8f8!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .btn{display:none}
+}
+@media(max-width:600px){
+  .row{flex-direction:column;gap:8px}
+  .field{min-width:100%}
+  .photo-grid{grid-template-columns:1fr}
+  .report-meta{flex-direction:column}
+  .checkbox-group{flex-direction:column}
+}
+</style>
+</head>
+<body>
+<div class="report">
+<div class="header">
+  <div class="company">EXACT LEAK DETECTION <span style="color:#2B8FCC">HTX</span></div>
+  <div class="tagline">We Find Leaks. Without the Destruction.</div>
+  <div class="contact">
+    <strong>Phone/Text:</strong> <a href="tel:3462223951">(346) 222-3951</a> &nbsp;|&nbsp;
+    <strong>Email:</strong> <a href="mailto:info@exactleakhtx.com">info@exactleakhtx.com</a> &nbsp;|&nbsp;
+    <strong>Web:</strong> <a href="https://exactleakhtx.com">exactleakhtx.com</a>
+  </div>
+</div>
+
+<div class="report-meta">
+  <div class="field" style="flex:0 1 280px"><label>Report #</label><input type="text" id="reportNum" placeholder="ELD-2026-0001"></div>
+  <div class="field" style="flex:0 1 200px"><label>Date</label><input type="date" id="reportDate"></div>
+  <div class="field" style="flex:0 1 200px"><label>Technician</label><input type="text" id="techName" placeholder="Technician name"></div>
+</div>
+<!-- SECTION 1: HOMEOWNER DETAILS -->
+<h2 onclick="toggleSection(this)">1. Homeowner Details <span class="toggle">▼</span></h2>
+<div class="section">
+  <div class="row">
+    <div class="field"><label>Homeowner Name</label><input type="text" placeholder="Full name"></div>
+    <div class="field"><label>Phone</label><input type="tel" placeholder="(000) 000-0000"></div>
+  </div>
+  <div class="row">
+    <div class="field" style="flex:2"><label>Property Address</label><input type="text" placeholder="Street address, City, TX ZIP"></div>
+    <div class="field"><label>Email</label><input type="email" placeholder="email@example.com"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Insurance Company</label><input type="text" placeholder="Carrier name"></div>
+    <div class="field"><label>Claim Number</label><input type="text" placeholder="Claim #"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Adjuster Name</label><input type="text" placeholder="Adjuster name"></div>
+    <div class="field"><label>Adjuster Phone/Email</label><input type="text" placeholder="Contact info"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Policy Number</label><input type="text" placeholder="Policy #"></div>
+    <div class="field"><label>Date of Loss</label><input type="date"></div>
+  </div>
+</div>
+
+<!-- SECTION 2: SITE CONDITIONS -->
+<h2 onclick="toggleSection(this)">2. Site Conditions <span class="toggle">▼</span></h2>
+<div class="section">
+  <div class="row">
+    <div class="field"><label>Arrival Date/Time</label><input type="datetime-local"></div>
+    <div class="field"><label>Weather Conditions</label>
+      <select><option value="">Select...</option><option>Clear/Sunny</option><option>Cloudy</option><option>Rain</option><option>Storms</option><option>Hot & Humid</option></select>
+    </div>
+    <div class="field"><label>Temperature (°F)</label><input type="number" placeholder="°F"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Property Type</label>
+      <select><option value="">Select...</option><option>Single-Family Residential</option><option>Townhome/Condo</option><option>Multi-Family</option><option>Commercial</option><option>Other</option></select>
+    </div>
+    <div class="field"><label>Year Built</label><input type="number" placeholder="e.g. 1998"></div>
+    <div class="field"><label>Number of Stories</label>
+      <select><option value="">Select...</option><option>1</option><option>2</option><option>3+</option></select>
+    </div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Foundation Type</label>
+      <select><option value="">Select...</option><option>Slab-on-Grade</option><option>Pier & Beam</option><option>Basement</option><option>Combination</option><option>Unknown</option></select>
+    </div>
+    <div class="field"><label>Water Source</label>
+      <select><option value="">Select...</option><option>Municipal</option><option>Well</option><option>Other</option></select>
+    </div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Water Meter Location</label><input type="text" placeholder="e.g. Front yard, left side of driveway"></div>
+    <div class="field"><label>Main Shut-Off Location</label><input type="text" placeholder="e.g. Garage, left wall"></div>
+  </div>
+  <div class="row">
+    <div class="field" style="flex:1 1 100%"><label>General Property Observations</label><textarea placeholder="Overall condition, visible damage, standing water, stains, odors, etc."></textarea></div>
+  </div>
+</div>
+
+<!-- SECTION 3: TESTING OPTIONS -->
+<h2 onclick="toggleSection(this)">3. Testing Options <span class="toggle">▼</span></h2>
+<div class="section">
+  <p style="font-size:0.9em;color:#666;margin-bottom:12px">Select all detection methods used during this inspection:</p>
+  <div class="checkbox-group">
+    <div class="checkbox-item"><input type="checkbox" id="m1"><label for="m1">Thermal Imaging</label></div>
+    <div class="checkbox-item"><input type="checkbox" id="m2"><label for="m2">Acoustic Detection</label></div>
+    <div class="checkbox-item"><input type="checkbox" id="m3"><label for="m3">Moisture Mapping</label></div>
+    <div class="checkbox-item"><input type="checkbox" id="m4"><label for="m4">Pressure Testing</label></div>
+    <div class="checkbox-item"><input type="checkbox" id="m5"><label for="m5">Visual Inspection</label></div>
+    <div class="checkbox-item"><input type="checkbox" id="m6"><label for="m6">Borescope</label></div>
+    <div class="checkbox-item"><input type="checkbox" id="m7"><label for="m7">Tracer Gas</label></div>
+  </div>
+  <div class="row">
+    <div class="field" style="flex:1 1 100%"><label>Testing Notes / Additional Methods</label><textarea placeholder="Describe any additional methods, equipment model numbers, or testing approach notes"></textarea></div>
+  </div>
+</div>
+
+<!-- SECTION 4: SYSTEM TESTS -->
+<h2 onclick="toggleSection(this)">4. System Tests <span class="toggle">▼</span></h2>
+<div class="section">
+  <div class="row">
+    <div class="field"><label>Water Meter Reading — Arrival</label><input type="text" placeholder="Reading"></div>
+    <div class="field"><label>Water Meter Reading — Departure</label><input type="text" placeholder="Reading"></div>
+    <div class="field"><label>Meter Moving on Arrival?</label>
+      <select><option value="">Select...</option><option>Yes — actively spinning</option><option>Yes — slow movement</option><option>No — stationary</option><option>Unable to determine</option></select>
+    </div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Static Water Pressure (PSI)</label><input type="number" placeholder="PSI"></div>
+    <div class="field"><label>Supply Line Test Result</label>
+      <select><option value="">Select...</option><option>Pass — No leak detected</option><option>Fail — Leak detected</option><option>Inconclusive</option><option>Not Tested</option></select>
+    </div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Drain Line Test Result</label>
+      <select><option value="">Select...</option><option>Pass — No leak detected</option><option>Fail — Leak detected</option><option>Inconclusive</option><option>Not Tested</option></select>
+    </div>
+    <div class="field"><label>Irrigation System Test</label>
+      <select><option value="">Select...</option><option>Pass — No leak detected</option><option>Fail — Leak detected</option><option>Inconclusive</option><option>Not Tested</option><option>N/A — No irrigation</option></select>
+    </div>
+  </div>
+  <div class="row">
+    <div class="field" style="flex:1 1 100%"><label>Fixtures Tested</label><textarea placeholder="List all fixtures tested: kitchen sink, master bath toilet, water heater, hose bibs, etc."></textarea></div>
+  </div>
+  <div class="row">
+    <div class="field" style="flex:1 1 100%"><label>Areas of Elevated Moisture (with readings)</label><textarea placeholder="Location — Reading — Normal range&#10;e.g. Master bath floor — 42% — Normal <15%&#10;e.g. Kitchen wall behind sink — 28% — Normal <15%"></textarea></div>
+  </div>
+  <div class="row">
+    <div class="field" style="flex:1 1 100%"><label>Thermal Anomalies Detected</label><textarea placeholder="Describe any thermal anomalies: location, temperature differential, suspected cause"></textarea></div>
+  </div>
+</div>
+
+<!-- SECTION 5: PRESSURE TEST INFO -->
+<h2 onclick="toggleSection(this)">5. Pressure Test Info <span class="toggle">▼</span></h2>
+<div class="section">
+  <div class="row">
+    <div class="field"><label>System Isolated</label>
+      <select><option value="">Select...</option><option>Hot Supply Only</option><option>Cold Supply Only</option><option>Both Hot & Cold</option><option>Whole House</option><option>Specific Zone</option></select>
+    </div>
+    <div class="field"><label>Test Pressure (PSI)</label><input type="number" id="testPSI" placeholder="PSI"></div>
+    <div class="field"><label>Test Duration</label>
+      <select><option value="">Select...</option><option>15 minutes</option><option>30 minutes</option><option>1 hour</option><option>2 hours</option><option>Other</option></select>
+    </div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Starting Pressure (PSI)</label><input type="number" id="startPSI" oninput="calcDrop()" placeholder="PSI"></div>
+    <div class="field"><label>Ending Pressure (PSI)</label><input type="number" id="endPSI" oninput="calcDrop()" placeholder="PSI"></div>
+    <div class="field"><label>Pressure Drop (PSI)</label><input type="text" id="dropPSI" readonly style="background:#f0f0f0"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Result</label>
+      <div style="display:flex;gap:16px;margin-top:4px">
+        <div class="checkbox-item" style="flex:0"><input type="radio" name="ptResult" id="ptPass" value="pass"><label for="ptPass">PASS</label></div>
+        <div class="checkbox-item" style="flex:0"><input type="radio" name="ptResult" id="ptFail" value="fail"><label for="ptFail">FAIL</label></div>
+      </div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="field" style="flex:1 1 100%"><label>Pressure Test Notes</label><textarea placeholder="Additional observations, multiple test runs, zone isolation details, etc."></textarea></div>
+  </div>
+</div>
+
+<!-- SECTION 6: FINDINGS -->
+<h2 onclick="toggleSection(this)">6. Findings <span class="toggle">▼</span></h2>
+<div class="section">
+  <div id="findingsContainer">
+    <div class="finding-entry" style="border:1px solid #e0e0e0;border-radius:6px;padding:12px;margin-bottom:12px;background:var(--light)">
+      <strong style="color:var(--navy)">Leak Location #1</strong>
+      <div class="row" style="margin-top:8px">
+        <div class="field"><label>Location in Home</label><input type="text" placeholder="e.g. Master bathroom, under slab — hot supply line"></div>
+        <div class="field"><label>Severity</label>
+          <select><option value="">Select...</option><option>Active — Continuous flow</option><option>Slow — Seeping</option><option>Intermittent</option><option>Pinhole</option><option>Major Break</option></select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field" style="flex:1 1 100%"><label>Description of Findings</label><textarea placeholder="Detailed description: what was found, how it was identified, pipe type/size, depth, etc."></textarea></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Affected Areas</label><input type="text" placeholder="Rooms/areas affected by this leak"></div>
+        <div class="field"><label>Estimated Duration</label>
+          <select><option value="">Select...</option><option>Recent (days)</option><option>Short-term (weeks)</option><option>Long-term (months)</option><option>Chronic (years)</option><option>Unable to determine</option></select>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button type="button" class="btn" onclick="addFinding()" style="margin-top:8px">+ Add Another Leak Location</button>
+  <div class="row" style="margin-top:16px">
+    <div class="field" style="flex:1 1 100%"><label>Summary of All Findings</label><textarea placeholder="Overall summary of inspection findings for the adjuster's file"></textarea></div>
+  </div>
+</div>
+
+<!-- SECTION 7: PICTURES -->
+<h2 onclick="toggleSection(this)">7. Pictures <span class="toggle">▼</span></h2>
+<div class="section">
+  <div class="photo-grid">
+    <div class="photo-slot"><div class="label">Exterior / Front of Property</div><input type="file" accept="image/*" capture="environment" onchange="previewImg(this)"><input type="text" class="caption-input" placeholder="Caption"></div>
+    <div class="photo-slot"><div class="label">Water Meter</div><input type="file" accept="image/*" capture="environment" onchange="previewImg(this)"><input type="text" class="caption-input" placeholder="Caption"></div>
+    <div class="photo-slot"><div class="label">Affected Area #1</div><input type="file" accept="image/*" capture="environment" onchange="previewImg(this)"><input type="text" class="caption-input" placeholder="Caption"></div>
+    <div class="photo-slot"><div class="label">Affected Area #2</div><input type="file" accept="image/*" capture="environment" onchange="previewImg(this)"><input type="text" class="caption-input" placeholder="Caption"></div>
+    <div class="photo-slot"><div class="label">Thermal Image #1</div><input type="file" accept="image/*" capture="environment" onchange="previewImg(this)"><input type="text" class="caption-input" placeholder="Caption"></div>
+    <div class="photo-slot"><div class="label">Thermal Image #2</div><input type="file" accept="image/*" capture="environment" onchange="previewImg(this)"><input type="text" class="caption-input" placeholder="Caption"></div>
+    <div class="photo-slot"><div class="label">Moisture Reading</div><input type="file" accept="image/*" capture="environment" onchange="previewImg(this)"><input type="text" class="caption-input" placeholder="Caption"></div>
+    <div class="photo-slot"><div class="label">Equipment Used</div><input type="file" accept="image/*" capture="environment" onchange="previewImg(this)"><input type="text" class="caption-input" placeholder="Caption"></div>
+    <div class="photo-slot"><div class="label">Damage Documentation #1</div><input type="file" accept="image/*" capture="environment" onchange="previewImg(this)"><input type="text" class="caption-input" placeholder="Caption"></div>
+    <div class="photo-slot"><div class="label">Damage Documentation #2</div><input type="file" accept="image/*" capture="environment" onchange="previewImg(this)"><input type="text" class="caption-input" placeholder="Caption"></div>
+  </div>
+  <button type="button" class="btn" onclick="addPhotoSlot()" style="margin-top:12px">+ Add Photo Slot</button>
+</div>
+
+<!-- SECTION 8: RECOMMENDATIONS -->
+<h2 onclick="toggleSection(this)">8. Recommendations <span class="toggle">▼</span></h2>
+<div class="section">
+  <div class="row">
+    <div class="field" style="flex:1 1 100%"><label>Recommended Repairs</label><textarea placeholder="Describe recommended repairs: re-route supply line, spot repair under slab, replace section of pipe, etc."></textarea></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Urgency Level</label>
+      <select><option value="">Select...</option><option>Emergency — Immediate repair needed</option><option>Urgent — Within 24-48 hours</option><option>Standard — Schedule at convenience</option><option>Monitor — Re-inspect in 30 days</option></select>
+    </div>
+    <div class="field"><label>Referral to Plumber?</label>
+      <select><option value="">Select...</option><option>Yes — Homeowner requested referral</option><option>No — Homeowner has own plumber</option><option>N/A</option></select>
+    </div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Additional Testing Needed?</label>
+      <select><option value="">Select...</option><option>No — Investigation complete</option><option>Yes — Camera inspection recommended</option><option>Yes — Extended pressure test needed</option><option>Yes — Tracer gas recommended</option><option>Yes — Other (see notes)</option></select>
+    </div>
+    <div class="field"><label>Follow-Up Recommended?</label>
+      <select><option value="">Select...</option><option>No</option><option>Yes — After repairs completed</option><option>Yes — Re-inspect in 30 days</option><option>Yes — Other (see notes)</option></select>
+    </div>
+  </div>
+  <div class="row">
+    <div class="field" style="flex:1 1 100%"><label>Additional Notes</label><textarea placeholder="Any other recommendations or notes for the homeowner/adjuster"></textarea></div>
+  </div>
+</div>
+
+<!-- SECTION 9: DEPARTURE -->
+<h2 onclick="toggleSection(this)">9. Departure <span class="toggle">▼</span></h2>
+<div class="section">
+  <div class="row">
+    <div class="field"><label>Departure Time</label><input type="datetime-local"></div>
+    <div class="field"><label>Water Status at Departure</label>
+      <select><option value="">Select...</option><option>Water ON — Normal operation</option><option>Water OFF — Main shut off at meter</option><option>Water OFF — Shut off at house valve</option><option>Water OFF — Homeowner request</option><option>Partial — Hot water off, cold on</option></select>
+    </div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Main Shut-Off Position</label>
+      <select><option value="">Select...</option><option>Open (normal)</option><option>Closed</option><option>Partially closed</option></select>
+    </div>
+    <div class="field"><label>Temporary Measures Taken</label>
+      <select><option value="">Select...</option><option>None</option><option>Water shut off to affected area</option><option>Temporary clamp applied</option><option>Other (see notes)</option></select>
+    </div>
+  </div>
+  <div class="row">
+    <div class="field" style="flex:1 1 100%"><label>Departure Notes</label><textarea placeholder="Any additional notes about property condition at departure, instructions given to homeowner, etc."></textarea></div>
+  </div>
+  <div class="row">
+    <div class="field">
+      <label>Homeowner Signature</label>
+      <div class="sig-area"><div class="sig-line">Homeowner / Authorized Representative &nbsp;&nbsp;&nbsp; Date: ___________</div></div>
+    </div>
+    <div class="field">
+      <label>Technician Signature</label>
+      <div class="sig-area"><div class="sig-line">Technician &nbsp;&nbsp;&nbsp; Date: ___________</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 10: DISCLAIMER -->
+<h2 onclick="toggleSection(this)">10. Disclaimer <span class="toggle">▼</span></h2>
+<div class="section">
+  <div class="disclaimer">
+    <p><strong>SCOPE OF INSPECTION:</strong> This leak detection inspection was performed using non-invasive methods and industry-standard equipment. The inspection is limited to accessible areas and conditions present at the time of the inspection. Hidden or concealed conditions that were not accessible or detectable by the methods employed are excluded from this report.</p>
+    <br>
+    <p><strong>LIMITATIONS:</strong> Exact Leak Detection HTX provides leak detection and diagnostic services only. We do not perform repairs, demolition, or remediation. Findings and recommendations in this report are based on the technician's professional assessment using available equipment and observable conditions. Results are not guaranteed to identify all leaks or potential sources of water intrusion.</p>
+    <br>
+    <p><strong>LIABILITY:</strong> Exact Leak Detection HTX is not responsible for damage caused by pre-existing conditions, concealed defects, or conditions that develop after the date of inspection. Our liability is limited to the fee paid for this inspection. This report is prepared for the exclusive use of the client and their insurance carrier.</p>
+    <br>
+    <p><strong>CERTIFICATION:</strong> I certify that this report accurately represents the findings of the leak detection inspection performed at the above-referenced property on the date indicated. All testing was conducted using calibrated, professional-grade equipment by a trained leak detection technician.</p>
+    <br>
+    <p style="text-align:center;margin-top:12px"><strong>Exact Leak Detection HTX</strong> &nbsp;|&nbsp; Ward Restoration Services, LLC &nbsp;|&nbsp; Houston, TX &nbsp;|&nbsp; (346) 222-3951 &nbsp;|&nbsp; info@exactleakhtx.com</p>
+  </div>
+</div>
+
+<!-- ACTIONS -->
+<div class="actions">
+  <button type="button" class="btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+</div>
+
+</div><!-- end .report -->
+
+<script>
+// Auto-fill today's date
+document.getElementById('reportDate').valueAsDate = new Date();
+
+// Section collapse/expand
+function toggleSection(h2){
+  var sec = h2.nextElementSibling;
+  var arrow = h2.querySelector('.toggle');
+  if(sec.classList.contains('collapsed')){
+    sec.classList.remove('collapsed');
+    arrow.textContent = '▼';
+  } else {
+    sec.classList.add('collapsed');
+    arrow.textContent = '►';
+  }
+}
+
+// Pressure drop auto-calc
+function calcDrop(){
+  var s = parseFloat(document.getElementById('startPSI').value);
+  var e = parseFloat(document.getElementById('endPSI').value);
+  var field = document.getElementById('dropPSI');
+  if(!isNaN(s) && !isNaN(e)){
+    var drop = (s - e).toFixed(1);
+    field.value = drop + ' PSI' + (drop > 2 ? ' ⚠️' : ' ✓');
+  } else {
+    field.value = '';
+  }
+}
+
+// Add additional leak finding
+var findingCount = 1;
+function addFinding(){
+  findingCount++;
+  var container = document.getElementById('findingsContainer');
+  var div = document.createElement('div');
+  div.className = 'finding-entry';
+  div.style.cssText = 'border:1px solid #e0e0e0;border-radius:6px;padding:12px;margin-bottom:12px;background:var(--light)';
+  div.innerHTML = '<strong style="color:var(--navy)">Leak Location #'+findingCount+'</strong>'+
+    '<div class="row" style="margin-top:8px">'+
+    '<div class="field"><label>Location in Home</label><input type="text" placeholder="e.g. Kitchen, under slab"></div>'+
+    '<div class="field"><label>Severity</label><select><option value="">Select...</option><option>Active — Continuous flow</option><option>Slow — Seeping</option><option>Intermittent</option><option>Pinhole</option><option>Major Break</option></select></div>'+
+    '</div>'+
+    '<div class="row"><div class="field" style="flex:1 1 100%"><label>Description of Findings</label><textarea placeholder="Detailed description"></textarea></div></div>'+
+    '<div class="row"><div class="field"><label>Affected Areas</label><input type="text" placeholder="Rooms/areas affected"></div>'+
+    '<div class="field"><label>Estimated Duration</label><select><option value="">Select...</option><option>Recent (days)</option><option>Short-term (weeks)</option><option>Long-term (months)</option><option>Chronic (years)</option><option>Unable to determine</option></select></div></div>';
+  container.appendChild(div);
+}
+
+// Photo preview
+function previewImg(input){
+  if(input.files && input.files[0]){
+    var reader = new FileReader();
+    var slot = input.parentElement;
+    var existing = slot.querySelector('img');
+    if(existing) existing.remove();
+    reader.onload = function(e){
+      var img = document.createElement('img');
+      img.src = e.target.result;
+      slot.insertBefore(img, input.nextSibling);
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+// Add extra photo slot
+function addPhotoSlot(){
+  var grid = document.querySelector('.photo-grid');
+  var div = document.createElement('div');
+  div.className = 'photo-slot';
+  div.innerHTML = '<div class="label">Additional Photo</div><input type="file" accept="image/*" capture="environment" onchange="previewImg(this)"><input type="text" class="caption-input" placeholder="Caption">';
+  grid.appendChild(div);
+}
+</script>
+</body>
+</html>
